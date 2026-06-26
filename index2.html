@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Early Signal — Curve Map (v0.9.1)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#14202B;--muted:#5A6873;--panel:#0E161E;--panel-2:#16212C;--p-ink:#EAF0F4;--p-muted:#8B9AA6;
+    --cold:#2F6F95;--cool:#3FA39B;--warm:#E0A23D;--hot:#B23A2E;--opp:#5FCB83;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;}
+  body{font-family:"IBM Plex Mono",monospace;color:var(--ink);background:var(--panel);overflow:hidden;}
+  #app{display:grid;grid-template-columns:360px 1fr;height:100vh;}
+  @media(max-width:820px){#app{grid-template-columns:1fr;grid-template-rows:46vh 54vh;}}
+  .side{background:var(--panel);color:var(--p-ink);display:flex;flex-direction:column;min-height:0;}
+  .pad{padding:16px 16px 0;}
+  .brand{font-family:"Archivo",sans-serif;font-weight:800;font-size:19px;margin:0;}
+  .tag{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--p-muted);margin:2px 0 12px;}
+  input[type=text]{width:100%;background:var(--panel-2);border:1px solid rgba(255,255,255,.14);color:var(--p-ink);
+    font-family:inherit;font-size:12.5px;padding:9px 11px;border-radius:8px;outline:none;}
+  input[type=text]:focus{border-color:var(--cool);}
+  .lab{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--p-muted);margin:12px 0 7px;}
+  .toggle{display:flex;gap:6px;}
+  .toggle button{flex:1;background:transparent;border:1px solid rgba(255,255,255,.16);color:var(--p-ink);
+    font-family:inherit;font-size:10.5px;padding:6px;border-radius:7px;cursor:pointer;transition:background .15s,color .15s,border-color .15s;}
+  .toggle button.on{background:var(--p-ink);color:var(--panel);font-weight:600;}
+  .hint{font-size:10px;color:var(--p-muted);line-height:1.45;margin:10px 0 0;}
+
+  .listWrap{flex:1;overflow-y:auto;padding:12px 10px 18px;min-height:0;}
+  .row{display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:center;padding:9px 8px;border-radius:8px;cursor:pointer;transition:background .12s;}
+  .row:hover{background:var(--panel-2);}
+  .dot{width:14px;height:14px;border-radius:50%;justify-self:center;box-shadow:0 0 6px -1px currentColor;}
+  .rn{font-family:"Archivo",sans-serif;font-weight:600;font-size:13px;}
+  .ra{font-size:10px;color:var(--p-muted);}
+  .chip{font-family:"Archivo",sans-serif;font-weight:800;font-size:13px;}
+
+  .detail{flex:1;overflow-y:auto;min-height:0;display:none;}
+  .photo{height:160px;background:linear-gradient(135deg,#1d2a36,#0e161e);position:relative;display:flex;align-items:flex-end;}
+  .photo.has{background-size:cover;background-position:center;}
+  .photo::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(14,22,30,.93),rgba(14,22,30,.15) 55%,rgba(14,22,30,.04));}
+  .phInit{position:absolute;top:12px;left:16px;font-family:"Archivo",sans-serif;font-weight:800;font-size:38px;color:rgba(255,255,255,.14);}
+  .phTitle{position:relative;z-index:2;padding:14px 16px;}
+  .phName{font-family:"Archivo",sans-serif;font-weight:800;font-size:22px;line-height:1.05;}
+  .phArea{font-size:11px;color:var(--p-muted);margin-top:3px;}
+  .dBody{padding:16px;}
+  .gaugesTop{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .gauge{background:var(--panel-2);border-radius:10px;padding:12px;}
+  .gNum{font-family:"Archivo",sans-serif;font-weight:800;font-size:34px;line-height:1;}
+  .gLab{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--p-muted);margin-top:4px;}
+  .stage{font-size:11px;margin-top:10px;}
+  .verdict{font-size:12px;line-height:1.5;color:#dbe3e9;margin:9px 0 0;background:rgba(255,255,255,.03);border-left:3px solid var(--cool);padding:9px 11px;border-radius:0 7px 7px 0;}
+  .verdict b{color:#fff;}
+  .bio{font-size:12.5px;line-height:1.6;color:#cdd6dd;margin:14px 0 0;}
+  .rubLab{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--p-muted);margin:18px 0 9px;}
+  .rub{display:grid;gap:9px;}
+  .rrow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;font-size:11.5px;}
+  .pips{display:flex;gap:3px;}
+  .pip{width:13px;height:7px;border-radius:2px;background:rgba(255,255,255,.12);}
+  .rcap{font-size:10px;color:var(--p-muted);line-height:1.5;margin-top:11px;}
+  .subs{display:grid;gap:8px;}
+  .srow{font-size:11px;}
+  .srow .top{display:flex;justify-content:space-between;color:var(--p-muted);}
+  .bar{height:5px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:3px;}
+  .bar>i{display:block;height:100%;border-radius:99px;width:0;transition:width .5s cubic-bezier(.2,.7,.2,1);}
+  .actions{display:flex;gap:8px;margin-top:16px;}
+  .btn{flex:1;font-family:"Archivo",sans-serif;font-weight:700;font-size:11.5px;padding:9px;border-radius:8px;cursor:pointer;border:none;}
+  .btnP{background:var(--cool);color:#06231f;} .btnG{background:transparent;border:1px solid rgba(255,255,255,.2);color:var(--p-ink);}
+  .liveBox{margin-top:14px;background:var(--panel-2);border-radius:10px;padding:13px;display:none;}
+  .liveInt{font-size:11px;line-height:1.5;color:#cdd6dd;margin:10px 0 0;}
+
+  .mapWrap{position:relative;min-height:0;}
+  #map{position:absolute;inset:0;background:#0b1218;}
+  /* lift markers off the dark map */
+  .leaflet-overlay-pane svg{filter:drop-shadow(0 1px 2px rgba(0,0,0,.6));}
+  .leaflet-interactive{transition:fill-opacity .15s;cursor:pointer;}
+
+  /* hover tooltip card */
+  .leaflet-tooltip.es-tip{background:var(--panel-2);border:1px solid rgba(255,255,255,.14);border-radius:11px;
+    padding:11px 13px;max-width:236px;white-space:normal;box-shadow:0 14px 34px -14px rgba(0,0,0,.8);color:var(--p-ink);}
+  .leaflet-tooltip.es-tip:before{display:none;}
+  .tipName{font-family:"Archivo",sans-serif;font-weight:800;font-size:14px;line-height:1.1;}
+  .tipArea{font-size:10px;color:var(--p-muted);margin-top:2px;}
+  .tipMeta{display:flex;align-items:center;gap:8px;margin:8px 0 7px;}
+  .tipChip{font-family:"Archivo",sans-serif;font-weight:800;font-size:13px;color:#0b1218;border-radius:6px;padding:1px 7px;}
+  .tipChipLab{font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--p-muted);}
+  .tipStage{font-size:9.5px;color:var(--p-muted);margin-left:auto;text-align:right;}
+  .tipBlurb{font-size:11px;line-height:1.45;color:#cdd6dd;}
+  .tipGo{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--cool);margin-top:8px;}
+
+  /* floating legend */
+  .legend{position:absolute;z-index:600;right:12px;bottom:12px;background:rgba(14,22,30,.9);
+    border:1px solid rgba(255,255,255,.1);border-radius:11px;padding:11px 13px;width:178px;backdrop-filter:blur(4px);}
+  .legTitle{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--p-muted);margin-bottom:8px;}
+  .legRamp{height:9px;border-radius:99px;}
+  .legLabs{display:flex;justify-content:space-between;font-size:9px;color:var(--p-muted);margin-top:6px;}
+
+  .note{position:absolute;z-index:600;bottom:12px;left:12px;background:rgba(14,22,30,.85);color:var(--p-muted);font-size:10px;padding:6px 10px;border-radius:7px;max-width:42%;}
+  .loading{position:absolute;z-index:700;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--panel);color:var(--p-ink);font-size:12px;padding:10px 16px;border-radius:99px;display:none;}
+  .leaflet-container{font-family:"IBM Plex Mono",monospace;background:#0b1218;}
+  .leaflet-control-zoom{border:none!important;box-shadow:0 8px 20px -10px rgba(0,0,0,.7)!important;}
+  .leaflet-control-zoom a{background:var(--panel-2)!important;color:var(--p-ink)!important;border:1px solid rgba(255,255,255,.1)!important;}
+  .leaflet-control-zoom a:hover{background:#1f2e3b!important;}
+  .leaflet-control-attribution{background:rgba(14,22,30,.7)!important;color:var(--p-muted)!important;}
+  .leaflet-control-attribution a{color:var(--p-muted)!important;}
+  .mbTag{color:#FFD24A;font-weight:600;}
+  .mbBadge{display:none;background:#FFD24A;color:#3a2c00;font-family:"Archivo",sans-serif;font-weight:800;
+    font-size:9.5px;padding:2px 8px;border-radius:99px;margin-top:7px;letter-spacing:.05em;}
+  .mustWrap,.mustRing{pointer-events:none;}
+  .mustRing{width:100%;height:100%;border:2px solid #FFD24A;border-radius:50%;box-sizing:border-box;
+    box-shadow:0 0 9px rgba(255,210,74,.55);animation:mbpulse 2.2s ease-in-out infinite;}
+  @keyframes mbpulse{0%,100%{transform:scale(.8);opacity:.5}50%{transform:scale(1.05);opacity:1}}
+  @media(prefers-reduced-motion:reduce){.mustRing{animation:none;opacity:.85;}}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside class="side">
+    <div class="pad">
+      <h1 class="brand">Early&nbsp;Signal</h1>
+      <p class="tag">Curve map · v0.9.1 · 100+ places, US · Europe · LatAm</p>
+      <input id="q" type="text" placeholder="Filter list, or type any place + Enter to scan…" autocomplete="off"/>
+      <div class="lab">Rank &amp; colour by</div>
+      <div class="toggle" id="metric"><button data-metric="mat" class="on">Maturity</button><button data-metric="opp">Opportunity</button></div>
+      <div class="lab">Basemap</div>
+      <div class="toggle" id="basemap"><button data-bm="light" class="on">Light</button><button data-bm="dark">Dark</button><button data-bm="sat">Satellite</button></div>
+      <p class="hint"><b style="color:var(--p-ink)">Maturity</b> = how far up the curve (100 = done). <b style="color:var(--opp)">Opportunity</b> = early <i>and</i> ready. <span style="color:#FFD24A">★ gold rings flag must-buys</span> (opportunity ≥ 55). Hover a marker for a blurb; click for the profile.</p>
+    </div>
+    <div class="listWrap" id="list"></div>
+
+    <div class="detail" id="detail">
+      <div class="photo" id="photo"><div class="phInit" id="phInit"></div>
+        <div class="phTitle"><div class="phName" id="dName"></div><div class="phArea" id="dArea"></div><span id="dMust" class="mbBadge">★ Must-buy</span></div>
+      </div>
+      <div class="dBody">
+        <div class="gaugesTop">
+          <div class="gauge"><div class="gNum" id="dMat">—</div><div class="gLab">Maturity / 100</div></div>
+          <div class="gauge"><div class="gNum" id="dOpp" style="color:var(--opp)">—</div><div class="gLab">Opportunity / 100</div></div>
+        </div>
+        <div class="stage" id="dStage"></div>
+        <p class="verdict" id="dVerdict"></p>
+        <p class="bio" id="dBio"></p>
+        <div class="rubLab">Rubric profile (0–5)</div>
+        <div class="rub" id="dRub"></div>
+        <p class="rcap">Opportunity = readiness × runway. Readiness from <b style="color:var(--cool)">price cliff, rent gap, pioneer scene</b>; runway falls as <b style="color:var(--hot)">maturity</b> rises. Non-anchor rubric values are estimates from curve position.</p>
+        <div class="actions">
+          <button class="btn btnP" id="scanBtn">Scan live street signal</button>
+          <button class="btn btnG" id="back">← All places</button>
+        </div>
+        <div class="liveBox" id="liveBox">
+          <div class="rubLab" style="margin-top:0">Live street check</div>
+          <div class="subs">
+            <div class="srow"><div class="top"><span>Independent / pioneer venues</span><span id="indN">0</span></div><div class="bar"><i id="indBar" style="background:var(--cool)"></i></div></div>
+            <div class="srow"><div class="top"><span>Mainstream / chains</span><span id="mainN">0</span></div><div class="bar"><i id="mainBar" style="background:var(--hot)"></i></div></div>
+          </div>
+          <p class="liveInt" id="liveInt"></p>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="mapWrap">
+    <div id="map"></div>
+    <div class="legend"><div class="legTitle" id="legTitle">Maturity</div><div class="legRamp" id="legRamp"></div>
+      <div class="legLabs"><span id="legLo">early</span><span id="legHi">mature</span></div></div>
+    <div class="note">Map blank in preview? The sandbox blocks tiles — download &amp; open locally.</div>
+    <div class="loading" id="loading">scanning…</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const PLACES=[
+ {n:"South Beach",a:"Miami Beach, FL",lat:25.7825,lon:-80.1340,s:100,wiki:"South Beach",bio:"Art Deco beachfront that went from faded retiree strip in the 1980s to a global luxury-and-nightlife brand — the end state of the curve."},
+ {n:"Brickell",a:"Miami, FL",lat:25.7617,lon:-80.1918,s:93,wiki:"Brickell",bio:"Miami's financial core, built out into a dense canyon of luxury condo towers. Fully mature."},
+ {n:"Wynwood",a:"Miami, FL",lat:25.8010,lon:-80.1990,s:88,wiki:"Wynwood",bio:"Puerto Rican warehouse district turned street-art mecca after Tony Goldman's 2009 Walls; now condo towers and nightlife."},
+ {n:"Little Haiti",a:"Miami, FL",lat:25.8245,lon:-80.1918,s:45,wiki:"Little Haiti",bio:"Haitian cultural heart on comparatively higher ground — cheap, characterful, creative. Early, but Magic City means the developer signal is already flashing."},
+ {n:"Allapattah",a:"Miami, FL",lat:25.8150,lon:-80.2240,s:40,wiki:"Allapattah",bio:"Working-class, industrial pocket beside Wynwood now drawing galleries and speculators. Very early."},
+ {n:"Little River",a:"Miami, FL",lat:25.8470,lon:-80.1960,s:44,wiki:"Little River, Miami",bio:"Warehouse district just north of Little Haiti — galleries, breweries and a multi-billion-dollar redevelopment arriving while rents stay low. A textbook early frontier."},
+ {n:"SoHo",a:"Manhattan, NY",lat:40.7233,lon:-74.0020,s:98,wiki:"SoHo, Manhattan",bio:"Cast-iron loft district that wrote the artists-first gentrification playbook in the 1970s; now flagship retail."},
+ {n:"Williamsburg",a:"Brooklyn, NY",lat:40.7140,lon:-73.9570,s:95,wiki:"Williamsburg, Brooklyn",bio:"Industrial waterfront, artist colony in the '90s, luxury towers after the 2005 rezoning. Fully mature."},
+ {n:"Bushwick",a:"Brooklyn, NY",lat:40.6945,lon:-73.9210,s:80,wiki:"Bushwick, Brooklyn",bio:"Post-industrial Brooklyn that absorbed artists priced out of Williamsburg; now well advanced."},
+ {n:"Bedford-Stuyvesant",a:"Brooklyn, NY",lat:40.6870,lon:-73.9410,s:66,wiki:"Bedford–Stuyvesant",bio:"Historic Black Brooklyn brownstone neighbourhood mid-transition, community still substantially intact."},
+ {n:"Mission District",a:"San Francisco, CA",lat:37.7599,lon:-122.4148,s:90,wiki:"Mission District, San Francisco",bio:"Latino heart of San Francisco reshaped by two tech booms; late-stage and bitterly contested."},
+ {n:"Arts District",a:"Los Angeles, CA",lat:34.0407,lon:-118.2350,s:83,wiki:"Arts District, Los Angeles",bio:"Downtown warehouse zone converted to lofts, galleries and breweries. Mature creative quarter."},
+ {n:"Echo Park",a:"Los Angeles, CA",lat:34.0782,lon:-118.2606,s:79,wiki:"Echo Park, Los Angeles",bio:"Hillside LA neighbourhood that flipped from working-class Latino to hip across the 2010s."},
+ {n:"West Adams",a:"Los Angeles, CA",lat:34.0309,lon:-118.3300,s:52,wiki:"West Adams, Los Angeles",bio:"Historic Black LA district of grand homes, now an active gentrification frontier."},
+ {n:"Capitol Hill",a:"Seattle, WA",lat:47.6230,lon:-122.3210,s:86,wiki:"Capitol Hill, Seattle",bio:"Seattle's dense nightlife and LGBTQ core, long gentrified and now tech-pressured."},
+ {n:"Alberta Arts",a:"Portland, OR",lat:45.5590,lon:-122.6470,s:77,wiki:"Alberta Arts District",bio:"Portland corridor revived by an arts-district strategy. Mature."},
+ {n:"East Austin",a:"Austin, TX",lat:30.2640,lon:-97.7190,s:82,wiki:"East Austin, Texas",bio:"Historically Black and Latino east side, rapidly transformed by Austin's tech boom."},
+ {n:"RiNo",a:"Denver, CO",lat:39.7690,lon:-104.9810,s:80,wiki:"River North Art District",bio:"Denver's River North warehouses turned art-and-brewery district. Developer stage."},
+ {n:"Logan Square",a:"Chicago, IL",lat:41.9230,lon:-87.7080,s:79,wiki:"Logan Square, Chicago",bio:"Boulevard neighbourhood, Latino working-class turned hipster-mainstream."},
+ {n:"Fishtown",a:"Philadelphia, PA",lat:39.9710,lon:-75.1290,s:77,wiki:"Fishtown, Philadelphia",bio:"Former blue-collar river ward, now a nationally-cited 'coolest neighbourhood.'"},
+ {n:"Germantown",a:"Philadelphia, PA",lat:40.0370,lon:-75.1730,s:48,wiki:"Germantown, Philadelphia",bio:"Historic, architecturally rich district still early on the curve."},
+ {n:"Shaw",a:"Washington, DC",lat:38.9120,lon:-77.0220,s:80,wiki:"Shaw, Washington, D.C.",bio:"Historically Black DC neighbourhood remade around music venues and new development."},
+ {n:"H Street NE",a:"Washington, DC",lat:38.9000,lon:-76.9920,s:77,wiki:"H Street (Washington, D.C.)",bio:"Corridor revived post-1968 into a bar-and-restaurant strip. Advanced."},
+ {n:"The Gulch",a:"Nashville, TN",lat:36.1510,lon:-86.7900,s:86,wiki:"Gulch (Nashville)",bio:"Former rail yard rebuilt as a glossy mixed-use district. Mature."},
+ {n:"Bywater",a:"New Orleans, LA",lat:29.9620,lon:-90.0530,s:73,wiki:"Bywater, New Orleans",bio:"Bohemian downriver neighbourhood, arts-led and well along."},
+ {n:"Corktown",a:"Detroit, MI",lat:42.3310,lon:-83.0680,s:58,wiki:"Corktown, Detroit",bio:"Detroit's oldest neighbourhood, anchored by Ford's Michigan Central revival. Emerging."},
+ {n:"Lawrenceville",a:"Pittsburgh, PA",lat:40.4690,lon:-79.9610,s:71,wiki:"Lawrenceville (Pittsburgh)",bio:"Former steel-worker rows turned design-and-dining strip."},
+ {n:"Old Fourth Ward",a:"Atlanta, GA",lat:33.7610,lon:-84.3700,s:74,wiki:"Old Fourth Ward",bio:"Historic Black district transformed by the BeltLine and Ponce City Market."},
+ {n:"River Arts District",a:"Asheville, NC",lat:35.5860,lon:-82.5710,s:70,wiki:"River Arts District",bio:"Old industrial riverside, now studios and breweries."},
+ {n:"Polanco",a:"Mexico City, MX",lat:19.4330,lon:-99.1930,s:94,wiki:"Polanco, Mexico City",bio:"Old-money luxury quarter — the high end, not a frontier."},
+ {n:"Condesa",a:"Mexico City, MX",lat:19.4110,lon:-99.1730,s:90,wiki:"Condesa",bio:"Leafy Art Deco neighbourhood, bohemian-turned-expensive and digital-nomad heavy."},
+ {n:"Roma Norte",a:"Mexico City, MX",lat:19.4170,lon:-99.1600,s:84,wiki:"Colonia Roma",bio:"Earthquake-scarred district reborn as CDMX's creative core and the epicentre of its nomad boom."},
+ {n:"Juárez",a:"Mexico City, MX",lat:19.4280,lon:-99.1580,s:67,wiki:"Colonia Juárez, Mexico City",bio:"Central colonia rapidly catching up to neighbouring Roma."},
+ {n:"Doctores",a:"Mexico City, MX",lat:19.4220,lon:-99.1430,s:46,wiki:"Colonia Doctores",bio:"Gritty, well-located colonia next to Roma — cheap and just beginning to turn. Agents already pitching it as 'Roma Oriente.'"},
+ {n:"Santa María la Ribera",a:"Mexico City, MX",lat:19.4530,lon:-99.1560,s:50,wiki:"Santa María la Ribera",bio:"Long-touted 'next it' colonia around the Kiosco Morisco — artist studios and cafés arriving, prices still well below Roma. Textbook one-ring-out."},
+ {n:"San Rafael",a:"Mexico City, MX",lat:19.4410,lon:-99.1610,s:54,wiki:"Colonia San Rafael, Mexico City",bio:"Porfirian-era architecture near Reforma, drawing creatives and developers as Roma and Condesa price out. Early."},
+ {n:"Escandón",a:"Mexico City, MX",lat:19.4030,lon:-99.1760,s:60,wiki:"Colonia Escandón",bio:"Quiet colonia wedged against Condesa — 'twenty years younger,' fondas and walk-ups, rents climbing as spillover lands."},
+ {n:"Colonia Americana",a:"Guadalajara, MX",lat:20.6720,lon:-103.3680,s:76,wiki:"Colonia Americana",bio:"Guadalajara's historic district, named a 'coolest neighbourhood' and now well along."},
+ {n:"Barrio Antiguo",a:"Monterrey, MX",lat:25.6680,lon:-100.3070,s:60,wiki:"Barrio Antiguo",bio:"Monterrey's historic core, a nightlife-and-culture revival district."},
+ {n:"Centro",a:"Mérida, MX",lat:20.9670,lon:-89.6230,s:57,wiki:"Mérida, Yucatán",bio:"Colonial Yucatán capital drawing expats and restorers. Mid-early."},
+ {n:"Centro",a:"Oaxaca, MX",lat:17.0610,lon:-96.7250,s:61,wiki:"Oaxaca City",bio:"Cultural-tourism magnet whose colonial centre is steadily gentrifying."},
+ {n:"Tulum",a:"Quintana Roo, MX",lat:20.2110,lon:-87.4650,s:82,wiki:"Tulum",bio:"Beach-and-jungle boomtown built fast on global tourism. Mature in a resort model."},
+ {n:"Playa del Carmen",a:"Quintana Roo, MX",lat:20.6300,lon:-87.0730,s:79,wiki:"Playa del Carmen",bio:"Riviera Maya tourist city, heavily developed."},
+ {n:"Puerto Escondido",a:"Oaxaca, MX",lat:15.8600,lon:-97.0710,s:55,wiki:"Puerto Escondido, Oaxaca",bio:"Oaxacan surf town in a fast, recent tourism-led climb."},
+ {n:"San Miguel de Allende",a:"Guanajuato, MX",lat:20.9140,lon:-100.7450,s:85,wiki:"San Miguel de Allende",bio:"Colonial city long colonised by foreign retirees and second-home buyers."},
+ {n:"Sayulita",a:"Nayarit, MX",lat:20.8690,lon:-105.4410,s:72,wiki:"Sayulita",bio:"Surf village turned boutique destination."},
+ {n:"Antigua",a:"Guatemala",lat:14.5570,lon:-90.7330,s:80,wiki:"Antigua Guatemala",bio:"Colonial showpiece, tourism-saturated."},
+ {n:"Zona 4",a:"Guatemala City, GT",lat:14.6180,lon:-90.5180,s:58,wiki:"Guatemala City",bio:"Old industrial zone rebranded as a creative district (4 Grados Norte)."},
+ {n:"Casco Viejo",a:"Panama City, PA",lat:8.9510,lon:-79.5360,s:78,wiki:"Casco Viejo, Panama",bio:"Restored colonial quarter, now upscale and touristed."},
+ {n:"Barrio Escalante",a:"San José, CR",lat:9.9320,lon:-84.0680,s:62,wiki:"San José, Costa Rica",bio:"San José's 'foodie' corridor. Mid-stage."},
+ {n:"Santa Teresa",a:"Costa Rica",lat:9.6440,lon:-85.1680,s:66,wiki:"Santa Teresa, Costa Rica",bio:"Pacific surf town on a steep tourism-driven rise."},
+ {n:"Granada",a:"Nicaragua",lat:11.9300,lon:-85.9560,s:51,wiki:"Granada, Nicaragua",bio:"Colonial tourist city, expat-influenced."},
+ {n:"León",a:"Nicaragua",lat:12.4350,lon:-86.8780,s:43,wiki:"León, Nicaragua",bio:"Colonial university city — earlier, and cheaper."},
+ {n:"San Pedro",a:"Ambergris Caye, BZ",lat:17.9210,lon:-87.9610,s:53,wiki:"San Pedro, Belize",bio:"Belize's main island tourist hub."},
+ {n:"Greenpoint",a:"Brooklyn, NY",lat:40.7300,lon:-73.9510,s:85,wiki:"Greenpoint, Brooklyn",bio:"Polish working-class waterfront north of Williamsburg, now its pricier, quieter extension."},
+ {n:"Long Island City",a:"Queens, NY",lat:40.7450,lon:-73.9490,s:84,wiki:"Long Island City",bio:"Queens industrial waterfront across from Midtown, reborn as a wall of glass condo towers."},
+ {n:"Astoria",a:"Queens, NY",lat:40.7640,lon:-73.9230,s:73,wiki:"Astoria, Queens",bio:"Diverse, long-affordable Queens neighbourhood climbing as Manhattan prices push east."},
+ {n:"Ridgewood",a:"Queens, NY",lat:40.7000,lon:-73.9050,s:56,wiki:"Ridgewood, Queens",bio:"Just over the line from Bushwick — the next ring out, cheaper, scene arriving."},
+ {n:"Harlem",a:"Manhattan, NY",lat:40.8110,lon:-73.9460,s:78,wiki:"Harlem",bio:"Historic heart of Black America, brownstone-rich and well into a contested transformation."},
+ {n:"Gowanus",a:"Brooklyn, NY",lat:40.6750,lon:-73.9890,s:79,wiki:"Gowanus, Brooklyn",bio:"Toxic-canal industrial zone rezoned for towers — late-stage and capital-driven."},
+ {n:"Downtown Jersey City",a:"Jersey City, NJ",lat:40.7170,lon:-74.0430,s:80,wiki:"Downtown Jersey City",bio:"Manhattan's across-the-river overflow, now a high-rise, finance-adjacent hub."},
+ {n:"Silver Lake",a:"Los Angeles, CA",lat:34.0830,lon:-118.2700,s:88,wiki:"Silver Lake, Los Angeles",bio:"LA's archetypal hipster hillside — the creative wave long since cashed in."},
+ {n:"Highland Park",a:"Los Angeles, CA",lat:34.1160,lon:-118.1920,s:80,wiki:"Highland Park, Los Angeles",bio:"Northeast LA's once-cheap Latino neighbourhood, now a poster child for displacement."},
+ {n:"Boyle Heights",a:"Los Angeles, CA",lat:34.0330,lon:-118.2100,s:52,wiki:"Boyle Heights, Los Angeles",bio:"Mexican-American heart east of the LA River, fiercely resisting an advancing frontier — early and contested."},
+ {n:"Leimert Park",a:"Los Angeles, CA",lat:34.0080,lon:-118.3280,s:50,wiki:"Leimert Park, Los Angeles",bio:"Historic Black cultural hub in South LA, newly transit-connected and on the cusp."},
+ {n:"Wicker Park",a:"Chicago, IL",lat:41.9080,lon:-87.6770,s:88,wiki:"Wicker Park, Chicago",bio:"Chicago's original artist-gentrifier neighbourhood; mature and mainstream."},
+ {n:"Pilsen",a:"Chicago, IL",lat:41.8570,lon:-87.6560,s:66,wiki:"Pilsen, Chicago",bio:"Mexican-American neighbourhood with a strong muralist identity, mid-transition."},
+ {n:"Bridgeport",a:"Chicago, IL",lat:41.8380,lon:-87.6510,s:52,wiki:"Bridgeport, Chicago",bio:"Old Irish-and-industrial South Side, cheap and well-located, just starting to draw artists."},
+ {n:"Over-the-Rhine",a:"Cincinnati, OH",lat:39.1150,lon:-84.5160,s:75,wiki:"Over-the-Rhine",bio:"Italianate historic district, one of America's most dramatic neighbourhood turnarounds."},
+ {n:"Deep Ellum",a:"Dallas, TX",lat:32.7840,lon:-96.7840,s:78,wiki:"Deep Ellum, Dallas",bio:"Warehouse music-and-arts quarter, now bars and fast development."},
+ {n:"The Heights",a:"Houston, TX",lat:29.8000,lon:-95.3980,s:82,wiki:"Houston Heights",bio:"Historic streetcar suburb, leafy and well along."},
+ {n:"East Nashville",a:"Nashville, TN",lat:36.1780,lon:-86.7450,s:80,wiki:"East Nashville",bio:"Music city's bohemian east side, now hospitality-saturated."},
+ {n:"Ballard",a:"Seattle, WA",lat:47.6680,lon:-122.3840,s:84,wiki:"Ballard, Seattle",bio:"Old Nordic fishing district, breweries and tech money."},
+ {n:"Northern Liberties",a:"Philadelphia, PA",lat:39.9650,lon:-75.1400,s:80,wiki:"Northern Liberties, Philadelphia",bio:"Former industrial fringe, an early-2000s arts-led success."},
+ {n:"Barrio Logan",a:"San Diego, CA",lat:32.7000,lon:-117.1400,s:52,wiki:"Barrio Logan, San Diego",bio:"Chicano-mural heart by the bay, cheap and creative — an early frontier."},
+ {n:"Wesley Heights",a:"Charlotte, NC",lat:35.2350,lon:-80.8660,s:54,wiki:"Wesley Heights (Charlotte, North Carolina)",bio:"Bungalow pocket west of Uptown beside the booming Camp North End — early."},
+ {n:"Notting Hill",a:"London, UK",lat:51.5150,lon:-0.2050,s:98,wiki:"Notting Hill",bio:"The original gentrification fairytale — Caribbean Carnival roots, now global super-prime."},
+ {n:"Shoreditch",a:"London, UK",lat:51.5260,lon:-0.0780,s:92,wiki:"Shoreditch",bio:"East London's YBA-then-tech crucible; the warehouses-to-towers case study."},
+ {n:"Dalston",a:"London, UK",lat:51.5460,lon:-0.0750,s:84,wiki:"Dalston",bio:"Hackney's nightlife frontier of the 2010s, now firmly gentrified."},
+ {n:"Peckham",a:"London, UK",lat:51.4740,lon:-0.0690,s:76,wiki:"Peckham",bio:"South London's art-school-and-rooftop-bar wave, mid-to-late."},
+ {n:"Le Marais",a:"Paris, FR",lat:48.8590,lon:2.3620,s:95,wiki:"Le Marais",bio:"Medieval quarter turned luxury-and-gallery district. Mature."},
+ {n:"Belleville",a:"Paris, FR",lat:48.8720,lon:2.3820,s:74,wiki:"Belleville, Paris",bio:"Hilly, multicultural eastern Paris with a strong artist presence, mid-transition."},
+ {n:"Kreuzberg",a:"Berlin, DE",lat:52.4990,lon:13.4030,s:86,wiki:"Kreuzberg",bio:"Berlin's Turkish-and-punk heartland, long the symbol of the city's gentrification fight."},
+ {n:"Neukölln",a:"Berlin, DE",lat:52.4810,lon:13.4350,s:80,wiki:"Neukölln",bio:"Berlin's cheaper southern frontier of the 2010s, now well along."},
+ {n:"Wedding",a:"Berlin, DE",lat:52.5500,lon:13.3430,s:60,wiki:"Wedding (Berlin)",bio:"Long-promised 'next' Berlin district — still relatively cheap, scene forming."},
+ {n:"Prenzlauer Berg",a:"Berlin, DE",lat:52.5400,lon:13.4240,s:90,wiki:"Prenzlauer Berg",bio:"Post-Wall East Berlin's first and most complete gentrification. Mature."},
+ {n:"El Raval",a:"Barcelona, ES",lat:41.3800,lon:2.1680,s:80,wiki:"El Raval",bio:"Gritty, immigrant-dense old-town quarter, heavily touristed and changing."},
+ {n:"Gràcia",a:"Barcelona, ES",lat:41.4040,lon:2.1580,s:82,wiki:"Gràcia",bio:"Village-like bohemian district, now expensive and beloved."},
+ {n:"Lavapiés",a:"Madrid, ES",lat:40.4080,lon:-3.7010,s:72,wiki:"Lavapiés",bio:"Madrid's most multicultural barrio, art-led and mid-transition."},
+ {n:"Malasaña",a:"Madrid, ES",lat:40.4260,lon:-3.7030,s:86,wiki:"Malasaña",bio:"The movida-era youth quarter, now mainstream-cool."},
+ {n:"Ruzafa",a:"Valencia, ES",lat:39.4610,lon:-0.3740,s:72,wiki:"Russafa",bio:"Valencia's design-and-brunch district, the city's gentrification poster child."},
+ {n:"El Cabanyal",a:"Valencia, ES",lat:39.4670,lon:-0.3280,s:52,wiki:"El Cabanyal",bio:"Historic fishermen's quarter by the beach — long fought-over, cheap, early."},
+ {n:"Bairro Alto",a:"Lisbon, PT",lat:38.7120,lon:-9.1460,s:88,wiki:"Bairro Alto",bio:"Lisbon's nightlife old town, tourism-saturated."},
+ {n:"Marvila",a:"Lisbon, PT",lat:38.7400,lon:-9.1000,s:62,wiki:"Marvila (Lisbon)",bio:"Riverside industrial east, branded a new creative-and-wine district. Emerging."},
+ {n:"Trastevere",a:"Rome, IT",lat:41.8890,lon:12.4690,s:88,wiki:"Trastevere",bio:"Rome's picturesque left-bank quarter, fully touristed and pricey."},
+ {n:"Sanità",a:"Naples, IT",lat:40.8570,lon:14.2520,s:46,wiki:"Rione Sanità",bio:"Dense, historically poor centre now drawing tourism and pioneers — early."},
+ {n:"Kalsa",a:"Palermo, IT",lat:38.1130,lon:13.3700,s:44,wiki:"Kalsa",bio:"Faded waterfront old town, cheap and slowly reviving — early."},
+ {n:"Kypseli",a:"Athens, GR",lat:37.9970,lon:23.7380,s:48,wiki:"Kypseli, Athens",bio:"Dense interwar neighbourhood with a famous market hall, creatives arriving — early."},
+ {n:"Metaxourgeio",a:"Athens, GR",lat:37.9860,lon:23.7210,s:52,wiki:"Metaxourgeio",bio:"Old industrial-and-red-light quarter, galleries pioneering — early."},
+ {n:"Kazimierz",a:"Kraków, PL",lat:50.0520,lon:19.9450,s:80,wiki:"Kazimierz",bio:"Former Jewish quarter, a complete bar-and-tourism transformation."},
+ {n:"Praga",a:"Warsaw, PL",lat:52.2520,lon:21.0380,s:52,wiki:"Praga (Warsaw)",bio:"Gritty right-bank district, long-touted as Warsaw's artist frontier — early."},
+ {n:"Žižkov",a:"Prague, CZ",lat:50.0870,lon:14.4500,s:70,wiki:"Žižkov",bio:"Prague's bohemian pub district, mid-transition."},
+ {n:"Plagwitz",a:"Leipzig, DE",lat:51.3270,lon:12.3390,s:52,wiki:"Plagwitz",bio:"Old factory district powering the 'next Berlin' narrative — early."},
+ {n:"Nørrebro",a:"Copenhagen, DK",lat:55.6940,lon:12.5530,s:82,wiki:"Nørrebro",bio:"Copenhagen's multicultural, dense inner district, well gentrified."},
+ {n:"Leith",a:"Edinburgh, UK",lat:55.9750,lon:-3.1700,s:72,wiki:"Leith",bio:"Edinburgh's old port — 'Trainspotting' grit turned waterfront cool."},
+ {n:"Ancoats",a:"Manchester, UK",lat:53.4840,lon:-2.2270,s:78,wiki:"Ancoats",bio:"Manchester's original industrial-revolution mills, now flats and restaurants."},
+ {n:"Le Panier",a:"Marseille, FR",lat:43.2980,lon:5.3710,s:50,wiki:"Le Panier",bio:"Marseille's ancient old town above the port, cheap and slowly turning — early."},
+ {n:"Savamala",a:"Belgrade, RS",lat:44.8120,lon:20.4520,s:50,wiki:"Savamala",bio:"Riverfront warehouse nightlife district, pioneering amid mega-redevelopment — early."},
+ {n:"Jordaan",a:"Amsterdam, NL",lat:52.3740,lon:4.8800,s:95,wiki:"Jordaan",bio:"Former working-class canals, now among the city's priciest. Mature."},
+ {n:"Liverpool Street / Broadgate",a:"City of London, UK",lat:51.5180,lon:-0.0810,s:94,wiki:"Broadgate",bio:"The City's north-east office gateway — Broadgate's towers, the rebuilt Liverpool Street station and the Elizabeth line. About as mature as office real estate gets."},
+ {n:"Bishopsgate",a:"City of London, UK",lat:51.5160,lon:-0.0815,s:93,wiki:"Bishopsgate",bio:"The City's tower spine — the Gherkin, the Scalpel, 22 Bishopsgate. Pure prime office, fully built out."},
+ {n:"Moorgate",a:"City of London, UK",lat:51.5180,lon:-0.0890,s:90,wiki:"Moorgate",bio:"Banking-and-insurance core between Bank junction and Finsbury, dense with office stock. Mature."},
+ {n:"Spitalfields",a:"London, UK",lat:51.5195,lon:-0.0750,s:86,wiki:"Spitalfields",bio:"Old Huguenot-then-Bangladeshi market quarter on the City's edge — restored Georgian terraces, offices and a glossy market. Mature."},
+ {n:"Aldgate",a:"London, UK",lat:51.5140,lon:-0.0760,s:80,wiki:"Aldgate",bio:"The seam between the City and the East End — older office stock being rebuilt into towers and student blocks. Late, but still moving."},
+ {n:"Clerkenwell",a:"London, UK",lat:51.5230,lon:-0.1050,s:88,wiki:"Clerkenwell",bio:"Print-trade workshops turned design studios, architects and media offices. The model creative-office district, now expensive."},
+ {n:"Farringdon",a:"London, UK",lat:51.5200,lon:-0.1048,s:85,wiki:"Farringdon",bio:"Smithfield-edge district supercharged by the Elizabeth line into one of London's best-connected office addresses. Mature."},
+ {n:"Old Street",a:"London, UK",lat:51.5255,lon:-0.0875,s:85,wiki:"Old Street roundabout",bio:"'Silicon Roundabout' — the tech-startup cluster of the 2010s, now a built-out office-and-co-working district."},
+ {n:"Whitechapel",a:"London, UK",lat:51.5190,lon:-0.0610,s:58,wiki:"Whitechapel",bio:"East End frontier directly east of the City, transformed by the Elizabeth line and the new Royal London estate — cheaper office and residential stock still catching up. Early for inner London."},
+ {n:"Bethnal Green",a:"London, UK",lat:51.5270,lon:-0.0555,s:66,wiki:"Bethnal Green",bio:"Dense East End neighbourhood between Shoreditch and the City fringe, mid-transition with creative and office spillover."},
+ {n:"Hackney Wick",a:"London, UK",lat:51.5440,lon:-0.0240,s:58,wiki:"Hackney Wick",bio:"Warehouse-studio cluster beside the Olympic Park — artists, breweries and workspace, with towers now arriving. Early, but the catalyst is here."},
+ {n:"Stratford",a:"London, UK",lat:51.5430,lon:-0.0030,s:76,wiki:"Stratford, London",bio:"Olympic-legacy boomtown — Westfield, new campuses and a wall of residential towers east of the City."},
+ {n:"Canary Wharf",a:"London, UK",lat:51.5050,lon:-0.0235,s:90,wiki:"Canary Wharf",bio:"The Docklands office megaproject, now pivoting to add residential and life-sciences as finance footprints shrink. Mature."},
+ {n:"King's Cross",a:"London, UK",lat:51.5320,lon:-0.1240,s:86,wiki:"King's Cross Central",bio:"Once a railway badlands, now a finished mega-regeneration — Google's HQ, Central Saint Martins, luxury flats."},
+ {n:"Bermondsey",a:"London, UK",lat:51.4980,lon:-0.0810,s:74,wiki:"Bermondsey",bio:"South-bank warehouse district — the 'Beer Mile', galleries and converted wharves, well into its climb."},
+ {n:"Deptford",a:"London, UK",lat:51.4790,lon:-0.0260,s:54,wiki:"Deptford",bio:"Gritty south-east riverside with a famous market and an art-school crowd — cheap, well-connected, and an active early frontier."},
+ {n:"Hackney Central",a:"London, UK",lat:51.5470,lon:-0.0560,s:78,wiki:"Hackney Central",bio:"The borough's hub — London Fields and Mare Street, comprehensively gentrified."},
+];
+const OVR={
+ "South Beach|Miami Beach, FL":[0,5,3,5,5,5],"Little Haiti|Miami, FL":[5,4,4,2,1,2],
+ "Wynwood|Miami, FL":[1,4,4,5,4,5],"Allapattah|Miami, FL":[5,4,3,1,1,1],"Little River|Miami, FL":[5,4,4,1,1,1],
+ "Williamsburg|Brooklyn, NY":[0,5,3,5,5,5],"Roma Norte|Mexico City, MX":[1,5,4,5,4,5],
+ "Doctores|Mexico City, MX":[5,4,3,1,1,1],"Tulum|Quintana Roo, MX":[2,2,3,5,4,5],
+ "Santa María la Ribera|Mexico City, MX":[5,4,4,2,1,1],"San Rafael|Mexico City, MX":[4,5,4,2,1,2],
+ "Escandón|Mexico City, MX":[3,5,4,3,2,2],
+ "Ridgewood|Queens, NY":[5,5,4,2,1,2],"Boyle Heights|Los Angeles, CA":[5,5,4,2,1,1],
+ "Leimert Park|Los Angeles, CA":[5,4,4,2,1,1],"Bridgeport|Chicago, IL":[5,4,4,1,1,1],
+ "Barrio Logan|San Diego, CA":[5,4,4,2,1,1],"Wesley Heights|Charlotte, NC":[5,5,4,2,1,2],
+ "Notting Hill|London, UK":[0,5,3,5,5,5],"Shoreditch|London, UK":[1,5,3,5,5,5],
+ "El Cabanyal|Valencia, ES":[5,5,4,2,1,1],"Sanità|Naples, IT":[5,4,4,1,1,1],
+ "Kalsa|Palermo, IT":[5,4,3,1,1,1],"Kypseli|Athens, GR":[5,4,4,2,1,1],
+ "Metaxourgeio|Athens, GR":[5,4,4,2,1,1],"Praga|Warsaw, PL":[5,4,4,2,1,1],
+ "Plagwitz|Leipzig, DE":[5,4,4,3,1,1],"Le Panier|Marseille, FR":[5,4,4,2,1,2],
+ "Savamala|Belgrade, RS":[5,4,4,2,1,1],
+ "Whitechapel|London, UK":[4,5,3,3,2,3],"Hackney Wick|London, UK":[4,4,4,3,1,2],
+ "Deptford|London, UK":[5,5,4,2,1,2],
+};
+const RUBMETA=[["rentGap","Rent gap","cool"],["priceCliff","Price cliff","cool"],["pioneer","Pioneer scene","cool"],
+ ["latte","Latte line","warm"],["mainstream","Mainstream / chains","hot"],["press","Press & capital","hot"]];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function rubricFor(pl){const o=OVR[pl.n+"|"+pl.a];
+ if(o)return{rentGap:o[0],priceCliff:o[1],pioneer:o[2],latte:o[3],mainstream:o[4],press:o[5]};
+ const m=pl.s;return{rentGap:clamp(Math.round(5.5-m/18),0,5),priceCliff:clamp(Math.round(2.7+m/45),2,5),
+  pioneer:clamp(Math.round(m<60?(m-15)/10:5-(m-60)/40),0,5),latte:clamp(Math.round((m-28)/13),0,5),
+  mainstream:clamp(Math.round((m-48)/11),0,5),press:clamp(Math.round((m-52)/10),0,5)};}
+function runway(m){return clamp(1-Math.pow(m/100,1.8),0,1);}
+function readiness(r){return clamp(.35*(r.priceCliff/5)+.25*(r.rentGap/5)+.30*(r.pioneer/5)+.10*(r.latte/5),0,1);}
+function oppFor(pl){return Math.round(100*readiness(rubricFor(pl))*runway(pl.s));}
+function stageOf(s){return s>=88?"Mature · super-gent":s>=75?"Developers · capital in":
+ s>=60?"Hospitality · latte line":s>=48?"Creatives · scene forming":"Pioneers · early";}
+function verdict(mat,opp){
+ if(mat>=80)return"<b>Late.</b> The climb has happened — this is exit, not entry.";
+ if(opp>=55)return"<b>Buy-zone.</b> Real ingredients and a rising scene, not yet priced.";
+ if(opp>=35)return"<b>Forming.</b> Promising but thin or partly priced — watch the velocity.";
+ if(mat<=42)return"<b>Low maturity, low opportunity.</b> The ingredients aren't here — undeveloped, not undervalued. Skip.";
+ return"<b>Mid-curve.</b> Limited upside left.";}
+PLACES.forEach(pl=>{pl._mat=pl.s;pl._opp=oppFor(pl);pl._must=pl._opp>=55;});
+
+const $=id=>document.getElementById(id);
+function ramp(t){const s=[[47,111,149],[63,163,155],[224,162,61],[178,58,46]];
+ const g=Math.min(2.999,Math.max(0,t)*3),i=Math.floor(g),f=g-i;const a=s[i],b=s[i+1];
+ return`rgb(${a.map((v,k)=>Math.round(v+(b[k]-v)*f)).join(',')})`;}
+function oppColor(o){const s=[[58,74,87],[63,163,155],[95,203,131]];const t=o/100;
+ const g=Math.min(1.999,t*2),i=Math.floor(g),f=g-i;const a=s[i],b=s[i+1];
+ return`rgb(${a.map((v,k)=>Math.round(v+(b[k]-v)*f)).join(',')})`;}
+const pipColor={cool:"var(--cool)",warm:"var(--warm)",hot:"var(--hot)"};
+
+let metric='mat';
+const valFor=pl=>metric==='mat'?pl._mat:pl._opp;
+const colorFor=pl=>metric==='mat'?ramp(pl._mat/100):oppColor(pl._opp);
+const baseR=pl=>6+valFor(pl)/8;
+
+// map + basemaps
+const map=L.map('map',{zoomControl:true}).setView([34,-30],3);
+const baseLight=L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,attribution:'&copy; OSM &copy; CARTO'});
+const baseDark=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,attribution:'&copy; OSM &copy; CARTO'});
+const baseStreets=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{subdomains:'abc',maxZoom:19,attribution:'&copy; OpenStreetMap'});
+const baseSat=L.layerGroup([
+ L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}),
+ L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:19})]);
+baseLight.addTo(map);
+const markerLayer=L.layerGroup().addTo(map),cellLayer=L.layerGroup().addTo(map),markers={};
+
+function tipHtml(pl){const c=colorFor(pl),v=valFor(pl);
+ return`<div class="tipName">${pl.n}</div><div class="tipArea">${pl.a}</div>
+  <div class="tipMeta"><span class="tipChip" style="background:${c}">${v}</span>
+   <span class="tipChipLab">${metric==='mat'?'maturity':'opp'}</span>
+   <span class="tipStage">${stageOf(pl._mat)}</span></div>
+  <div class="tipBlurb">${pl.bio}</div><div class="tipGo">Click for full profile →</div>`;}
+
+PLACES.forEach((pl,idx)=>{
+ const mk=L.circleMarker([pl.lat,pl.lon],{radius:baseR(pl),fillColor:colorFor(pl),color:'rgba(20,32,43,.6)',weight:1,fillOpacity:.92});
+ mk.bindTooltip(tipHtml(pl),{className:'es-tip',direction:'top',offset:[0,-6],opacity:1,sticky:false});
+ mk.on('mouseover',()=>{mk.setStyle({radius:baseR(pl)+4,weight:2,color:'#0b1218',fillOpacity:1});mk.bringToFront();});
+ mk.on('mouseout',()=>{mk.setStyle({radius:baseR(pl),weight:1,color:'rgba(20,32,43,.6)',fillOpacity:.92});});
+ mk.on('click',()=>openDetail(idx));
+ mk.addTo(markerLayer);markers[idx]=mk;});
+function recolor(){PLACES.forEach((pl,idx)=>{const mk=markers[idx];
+ mk.setStyle({fillColor:colorFor(pl)}).setRadius(baseR(pl));mk.setTooltipContent(tipHtml(pl));});}
+const mustLayer=L.layerGroup().addTo(map);
+PLACES.forEach(pl=>{if(!pl._must)return;
+ L.marker([pl.lat,pl.lon],{icon:L.divIcon({className:'mustWrap',html:'<div class="mustRing"></div>',iconSize:[40,40],iconAnchor:[20,20]}),interactive:false,keyboard:false}).addTo(mustLayer);});
+
+const matGrad='linear-gradient(90deg,#2F6F95,#3FA39B,#E0A23D,#B23A2E)';
+const oppGrad='linear-gradient(90deg,#3a4a57,#3FA39B,#5FCB83)';
+function updateLegend(){
+ $('legTitle').textContent=metric==='mat'?'Maturity · 0–100':'Opportunity · 0–100';
+ $('legRamp').style.background=metric==='mat'?matGrad:oppGrad;
+ $('legLo').textContent=metric==='mat'?'early':'skip';
+ $('legHi').textContent=metric==='mat'?'mature':'buy-zone';}
+updateLegend();
+
+function buildList(filter){const f=(filter||"").toLowerCase();
+ const items=PLACES.map((pl,i)=>({pl,i})).filter(x=>!f||(x.pl.n+" "+x.pl.a).toLowerCase().includes(f)).sort((a,b)=>valFor(b.pl)-valFor(a.pl));
+ $('list').innerHTML=items.map(({pl,i})=>`<div class="row" data-i="${i}">
+   <span class="dot" style="background:${colorFor(pl)};color:${colorFor(pl)}"></span>
+   <span><div class="rn">${pl.n}</div><div class="ra">${pl.a}${pl._must?' · <span class="mbTag">★ must-buy</span>':''}</div></span>
+   <span class="chip" style="color:${colorFor(pl)}">${valFor(pl)}</span></div>`).join("")
+   || '<p class="hint" style="padding:0 8px">No match. Press Enter to live-scan that place anywhere on earth.</p>';}
+buildList();
+$('list').addEventListener('click',e=>{const r=e.target.closest('.row');if(r)openDetail(+r.dataset.i);});
+
+let curIdx=null;
+function openDetail(idx){curIdx=idx;const pl=PLACES[idx];
+ $('list').style.display='none';$('detail').style.display='block';$('liveBox').style.display='none';
+ $('dName').textContent=pl.n;$('dArea').textContent=pl.a;$('phInit').textContent=pl.n.slice(0,2).toUpperCase();
+ $('dMust').style.display=pl._must?'inline-block':'none';
+ const ph=$('photo');ph.classList.remove('has');ph.style.backgroundImage='';
+ $('dMat').textContent=pl._mat;$('dMat').style.color=ramp(pl._mat/100);
+ $('dOpp').textContent=pl._opp;$('dOpp').style.color=oppColor(pl._opp);
+ $('dStage').textContent=stageOf(pl._mat);$('dStage').style.color=ramp(pl._mat/100);
+ $('dVerdict').innerHTML=verdict(pl._mat,pl._opp);$('dBio').textContent=pl.bio;
+ const r=rubricFor(pl);
+ $('dRub').innerHTML=RUBMETA.map(([k,label,col])=>{const v=r[k];
+  const pips=Array.from({length:5},(_,j)=>`<span class="pip" style="background:${j<v?pipColor[col]:'rgba(255,255,255,.12)'}"></span>`).join("");
+  return`<div class="rrow"><span>${label}</span><span class="pips">${pips}</span></div>`;}).join("");
+ map.flyTo([pl.lat,pl.lon],12,{duration:.8});loadPhoto(pl);}
+async function loadPhoto(pl){const tries=[pl.wiki||pl.n,(pl.wiki||pl.n)+", "+pl.a.split(",")[0]];
+ for(const t of tries){try{const r=await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(t));
+  if(!r.ok)continue;const j=await r.json();const src=j.thumbnail?.source||j.originalimage?.source;
+  if(src&&curIdx!==null&&PLACES[curIdx]===pl){const ph=$('photo');ph.style.backgroundImage=`url('${src}')`;ph.classList.add('has');return;}}catch(e){}}}
+$('back').addEventListener('click',()=>{$('detail').style.display='none';$('list').style.display='block';cellLayer.clearLayers();map.setView([34,-30],3);});
+
+// live scan
+const GRID=16,RADIUS_KM=3,TARGET_I=130,TARGET_M=80;
+const INDEP=[t=>t.tourism==='gallery'||t.amenity==='arts_centre'||t.amenity==='studio',t=>['second_hand','charity','antiques','vintage'].includes(t.shop),
+ t=>t.office==='coworking',t=>!!t.craft,t=>t.shop==='coffee',t=>t.amenity==='cafe',t=>t.amenity==='bar',t=>t.shop==='books'];
+const IW=[1.6,1.5,1.5,1.4,1.2,1.0,0.8,0.7];
+const MAIN=[t=>t.amenity==='bank',t=>t.amenity==='fast_food',t=>['department_store','mall','supermarket'].includes(t.shop),t=>t.tourism==='hotel'];
+const MW=[1.2,1.1,1.3,1.0];
+function classify(t){if(t.brand||t['brand:wikidata'])return{l:'main',w:1.2};
+ for(let i=0;i<MAIN.length;i++)if(MAIN[i](t))return{l:'main',w:MW[i]};
+ for(let i=0;i<INDEP.length;i++)if(INDEP[i](t))return{l:'indep',w:IW[i]};return null;}
+function bbox(lat,lon){const dLat=RADIUS_KM/111,dLon=RADIUS_KM/(111*Math.cos(lat*Math.PI/180));return{s:lat-dLat,n:lat+dLat,w:lon-dLon,e:lon+dLon};}
+async function fetchPOIs(b){const bb=`(${b.s},${b.w},${b.n},${b.e})`;
+ const tags=['amenity"="cafe','shop"="coffee','amenity"="bar','tourism"="gallery','amenity"="arts_centre','amenity"="studio','shop"="second_hand','shop"="charity','shop"="antiques','shop"="vintage','office"="coworking','craft','shop"="books','amenity"="bank','amenity"="fast_food','shop"="department_store','shop"="mall','shop"="supermarket','tourism"="hotel'];
+ const body=`[out:json][timeout:25];(`+tags.map(t=>`nwr["${t}"]${bb};`).join('')+`);out center tags;`;
+ const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(body)});
+ if(!r.ok)throw 0;const j=await r.json();
+ return j.elements.map(e=>{const lat=e.lat??e.center?.lat,lon=e.lon??e.center?.lon;if(lat==null)return null;const c=classify(e.tags||{});if(!c)return null;return{lat,lon,c};}).filter(Boolean);}
+function synth(lat,lon){const p=[],cl=[[lat+.006,lon+.004,.012],[lat-.004,lon-.006,.010],[lat+.001,lon-.001,.018]];
+ for(let i=0;i<240;i++){const c=cl[i%3];const g=()=>(Math.random()+Math.random()+Math.random()-1.5)/1.5;const main=Math.random()<0.35;
+  p.push({lat:c[0]+g()*c[2],lon:c[1]+g()*c[2]*1.3,c:{l:main?'main':'indep',w:1+Math.random()*.6}});}return p;}
+function renderScan(lat,lon,pois,synthetic){
+ cellLayer.clearLayers();const b=bbox(lat,lon),cw=(b.e-b.w)/GRID,ch=(b.n-b.s)/GRID,cells={};let wI=0,wM=0,nI=0,nM=0;
+ pois.forEach(p=>{if(p.lon<b.w||p.lon>b.e||p.lat<b.s||p.lat>b.n)return;
+  const col=Math.min(GRID-1,Math.floor((p.lon-b.w)/cw)),row=Math.min(GRID-1,Math.floor((p.lat-b.s)/ch)),id=row+'_'+col;
+  if(!cells[id])cells[id]={i:0,m:0,row,col,n:0};
+  if(p.c.l==='indep'){cells[id].i+=p.c.w;wI+=p.c.w;nI++;}else{cells[id].m+=p.c.w;wM+=p.c.w;nM++;}cells[id].n++;});
+ const vals=Object.values(cells).map(c=>c.i+c.m),max=Math.max(1,...vals);
+ Object.values(cells).forEach(c=>{const v=c.i+c.m;if(v<=0)return;const t=Math.min(1,v/max),s=b.s+c.row*ch,w=b.w+c.col*cw,blend=c.m/Math.max(1,c.i+c.m);
+  L.rectangle([[s,w],[s+ch,w+cw]],{stroke:false,fillColor:ramp(.25+.6*blend),fillOpacity:.14+.6*t})
+   .bindPopup(`<b>${c.n} venues</b><br>independent ${Math.round(c.i)} · chain ${Math.round(c.m)}`).addTo(cellLayer);});
+ const indS=Math.round(Math.min(100,100*wI/TARGET_I)),mainS=Math.round(Math.min(100,100*wM/TARGET_M));
+ const liveMat=Math.round(Math.min(100,.55*mainS+.30*indS+.15*Math.min(indS,mainS)));
+ const liveOpp=Math.round(Math.max(0,Math.min(100,indS*(1-mainS/100))));
+ $('liveBox').style.display='block';
+ $('indN').textContent=nI;$('mainN').textContent=nM;$('indBar').style.width=indS+'%';$('mainBar').style.width=mainS+'%';
+ let msg;
+ if(synthetic)msg='<b>Sample data</b> — live fetch blocked in preview. Download &amp; open the file for live results.';
+ else if(indS<20)msg='<b>No street scene.</b> Few independents on the ground — too early to read, or no catalyst here.';
+ else if(mainS>60&&indS>50)msg='<b>Saturated.</b> Independents and chains both heavy — mature, the window has closed.';
+ else if(liveOpp>=45)msg='<b>Scene without the chains</b> — the early profile. Confirm prices are still flat before acting.';
+ else msg='<b>Mixed.</b> A scene exists alongside mainstream presence — partly priced.';
+ $('liveInt').innerHTML=msg;
+ if(curIdx===null){$('dMat').textContent=pois.length?liveMat:'—';$('dMat').style.color=ramp(liveMat/100);
+  $('dOpp').textContent=pois.length?liveOpp:'—';$('dOpp').style.color=oppColor(liveOpp);
+  $('dMust').style.display=(pois.length&&liveOpp>=55)?'inline-block':'none';
+  $('dStage').textContent=stageOf(liveMat);$('dStage').style.color=ramp(liveMat/100);$('dVerdict').innerHTML=verdict(liveMat,liveOpp);}}
+let busy=false;
+async function scanAt(lat,lon){if(busy)return;busy=true;$('loading').style.display='block';
+ try{const pois=await fetchPOIs(bbox(lat,lon));if(!pois.length)throw 0;renderScan(lat,lon,pois,false);}
+ catch(e){renderScan(lat,lon,synth(lat,lon),true);}busy=false;$('loading').style.display='none';}
+$('scanBtn').addEventListener('click',()=>{if(curIdx!=null){const pl=PLACES[curIdx];scanAt(pl.lat,pl.lon);}else if(window.__adhoc)scanAt(window.__adhoc.lat,window.__adhoc.lon);});
+
+$('q').addEventListener('input',e=>{if($('list').style.display!=='none')buildList(e.target.value);});
+$('q').addEventListener('keydown',async e=>{if(e.key!=='Enter')return;const q=e.target.value.trim();if(!q)return;$('loading').style.display='block';
+ try{const r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q='+encodeURIComponent(q),{headers:{Accept:'application/json'}});
+  const j=await r.json();if(!j.length)throw 0;const lat=+j[0].lat,lon=+j[0].lon;window.__adhoc={lat,lon};
+  curIdx=null;$('list').style.display='none';$('detail').style.display='block';
+  $('dName').textContent=q;$('dArea').textContent=j[0].display_name.split(',').slice(-2).join(',').trim();
+  $('phInit').textContent=q.slice(0,2).toUpperCase();const ph=$('photo');ph.classList.remove('has');ph.style.backgroundImage='';
+  $('dMat').textContent='…';$('dOpp').textContent='…';$('dStage').textContent='live scan only — not in benchmark set';$('dVerdict').innerHTML='';$('dMust').style.display='none';
+  $('dBio').textContent='Ad-hoc location. Maturity and opportunity here are derived live from the street scan below.';$('dRub').innerHTML='';
+  map.flyTo([lat,lon],13,{duration:.8});scanAt(lat,lon);
+ }catch(err){alert('Could not find that place.');}$('loading').style.display='none';});
+
+$('metric').addEventListener('click',e=>{const m=e.target.dataset.metric;if(!m)return;metric=m;
+ [...$('metric').children].forEach(b=>b.classList.toggle('on',b.dataset.metric===m));
+ recolor();updateLegend();if($('list').style.display!=='none')buildList($('q').value);});
+$('basemap').addEventListener('click',e=>{const bm=e.target.dataset.bm;if(!bm)return;
+ [...$('basemap').children].forEach(b=>b.classList.toggle('on',b.dataset.bm===bm));
+ [baseLight,baseDark,baseStreets,baseSat].forEach(l=>map.removeLayer(l));
+ (bm==='light'?baseLight:bm==='dark'?baseDark:bm==='streets'?baseStreets:baseSat).addTo(map);});
+</script>
+<div id="nlOverlay" class="nlOverlay">
+  <div class="nlCard">
+    <button class="nlClose" id="nlClose" aria-label="Close">×</button>
+    <div class="nlKicker">Early Signal · Weekly Briefing</div>
+    <h2 class="nlTitle">Get the hot-areas briefing</h2>
+    <p class="nlSub">One email a week: the neighbourhoods crossing into the buy-zone, fresh street-scan data, and one deep-dive article. Built for investors, brokers and developers.</p>
+    <div class="nlRole" id="nlRole">
+      <button data-role="investor" class="on">I'm investing / browsing</button>
+      <button data-role="trade">I'm a broker / developer</button>
+    </div>
+    <p class="nlTradeNote" id="nlTradeNote">Trade members can submit listings to feature on the map and in the weekly briefing.</p>
+    <div class="nlForm" id="nlForm">
+      <input id="nlEmail" type="text" placeholder="you@email.com" autocomplete="email"/>
+      <button id="nlSubmit">Subscribe</button>
+    </div>
+    <p class="nlErr" id="nlErr"></p>
+    <p class="nlFoot">No spam. Unsubscribe anytime.</p>
+  </div>
+</div>
+<style>
+  .nlOverlay{position:fixed;inset:0;z-index:5000;background:rgba(6,12,18,.78);backdrop-filter:blur(5px);
+    display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .35s;}
+  .nlOverlay.show{opacity:1;pointer-events:auto;}
+  .nlCard{position:relative;width:100%;max-width:430px;background:var(--panel);border:1px solid rgba(255,255,255,.12);
+    border-radius:18px;padding:30px 28px 24px;box-shadow:0 40px 90px -30px rgba(0,0,0,.85);
+    transform:translateY(14px) scale(.98);transition:transform .35s cubic-bezier(.2,.7,.2,1);
+    font-family:"IBM Plex Mono",monospace;color:var(--p-ink);}
+  .nlOverlay.show .nlCard{transform:none;}
+  .nlClose{position:absolute;top:12px;right:14px;background:none;border:none;color:var(--p-muted);font-size:24px;line-height:1;cursor:pointer;padding:4px;}
+  .nlClose:hover{color:var(--p-ink);}
+  .nlKicker{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--opp);}
+  .nlTitle{font-family:"Archivo",sans-serif;font-weight:800;font-size:25px;margin:8px 0 0;line-height:1.05;}
+  .nlSub{font-size:12.5px;line-height:1.6;color:#cdd6dd;margin:10px 0 0;}
+  .nlRole{display:flex;gap:7px;margin:18px 0 0;}
+  .nlRole button{flex:1;background:transparent;border:1px solid rgba(255,255,255,.16);color:var(--p-ink);
+    font-family:inherit;font-size:10.5px;padding:9px 6px;border-radius:8px;cursor:pointer;transition:.15s;}
+  .nlRole button.on{background:var(--p-ink);color:var(--panel);font-weight:600;}
+  .nlTradeNote{font-size:10.5px;line-height:1.5;color:var(--warm);margin:9px 0 0;display:none;}
+  .nlForm{display:flex;gap:8px;margin:16px 0 0;}
+  .nlForm input{flex:1;background:var(--panel-2);border:1px solid rgba(255,255,255,.14);color:var(--p-ink);
+    font-family:inherit;font-size:13px;padding:11px 12px;border-radius:9px;outline:none;}
+  .nlForm input:focus{border-color:var(--cool);}
+  .nlForm button{font-family:"Archivo",sans-serif;font-weight:700;font-size:12.5px;padding:0 18px;border-radius:9px;border:none;background:var(--opp);color:#06231f;cursor:pointer;white-space:nowrap;}
+  .nlErr{font-size:11px;color:var(--hot);margin:9px 0 0;min-height:14px;}
+  .nlFoot{font-size:10px;color:var(--p-muted);margin:12px 0 0;}
+  .nlOk{text-align:center;padding:10px 0 4px;}
+  .nlOk .big{font-family:"Archivo",sans-serif;font-weight:800;font-size:21px;margin-top:8px;}
+</style>
+<script>
+(function(){
+ const ov=document.getElementById('nlOverlay');let role='investor';
+ const show=()=>ov.classList.add('show'),hide=()=>ov.classList.remove('show');
+ document.getElementById('nlRole').addEventListener('click',e=>{const r=e.target.dataset.role;if(!r)return;role=r;
+  [...e.currentTarget.children].forEach(b=>b.classList.toggle('on',b.dataset.role===r));
+  document.getElementById('nlTradeNote').style.display=r==='trade'?'block':'none';
+  document.getElementById('nlSubmit').textContent=r==='trade'?'Join + list':'Subscribe';});
+ document.getElementById('nlClose').addEventListener('click',hide);
+ ov.addEventListener('click',e=>{if(e.target===ov)hide();});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape')hide();});
+ document.getElementById('nlSubmit').addEventListener('click',async()=>{
+  const email=document.getElementById('nlEmail').value.trim(),err=document.getElementById('nlErr');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){err.textContent='Enter a valid email address.';return;}
+  err.textContent='';
+  try{await window.storage.set('nl_signup:'+email.toLowerCase(),JSON.stringify({email,role,ts:Date.now()}));}catch(e){}
+  const card=ov.querySelector('.nlCard');
+  card.innerHTML='<button class="nlClose" id="nlClose2" aria-label="Close">×</button>'+
+   '<div class="nlOk"><div class="nlKicker">You\'re in</div>'+
+   '<div class="big">'+(role==='trade'?'Welcome to the trade list':'See you in your inbox')+'</div>'+
+   '<p class="nlSub" style="text-align:center">'+(role==='trade'
+     ?'We\'ll be in touch about featuring your listings on the map and in the weekly briefing.'
+     :'The next hot-areas briefing lands in your inbox this week.')+'</p></div>';
+  document.getElementById('nlClose2').addEventListener('click',hide);});
+ setTimeout(show,900);
+})();
+</script>
+</body>
+</html>
