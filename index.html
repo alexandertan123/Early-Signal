@@ -116,6 +116,11 @@
     box-shadow:0 0 9px rgba(255,210,74,.55);animation:mbpulse 2.2s ease-in-out infinite;}
   @keyframes mbpulse{0%,100%{transform:scale(.8);opacity:.5}50%{transform:scale(1.05);opacity:1}}
   @media(prefers-reduced-motion:reduce){.mustRing{animation:none;opacity:.85;}}
+  .measTag{font-family:"Archivo",sans-serif;font-weight:800;font-size:8px;letter-spacing:.08em;text-transform:uppercase;
+    color:#06231f;background:var(--opp);padding:1px 5px;border-radius:99px;vertical-align:middle;}
+  .measCap{font-size:10.5px;line-height:1.5;color:#cdd6dd;margin:11px 0 0;background:rgba(95,203,131,.08);
+    border-left:3px solid var(--opp);padding:8px 11px;border-radius:0 7px 7px 0;}
+  .measCap b{color:#fff;}
 </style>
 </head>
 <body>
@@ -331,14 +336,25 @@ const OVR={
  "Whitechapel|London, UK":[4,5,3,3,2,3],"Hackney Wick|London, UK":[4,4,4,3,1,2],
  "Deptford|London, UK":[5,5,4,2,1,2],
 };
+/* MEASURED:START — real signals pulled from OpenStreetMap (keyless). Refresh with scripts/fetch-signals.py */
+const MEASURED={
+ "Granada|Nicaragua":{cafes:25,specialty:5,radiusKm:1.5,asof:"2026-06-26",src:"OpenStreetMap"},
+};
+/* MEASURED:END */
+/* Café count within radius -> "latte line" 0..5. Provisional bands; calibrate as more places are measured. */
+const LATTE_BANDS=[4,10,26,55,110];
+function latteFromCafes(n){let s=0;for(const b of LATTE_BANDS)if(n>=b)s++;return clamp(s,0,5);}
 const RUBMETA=[["rentGap","Rent gap","cool"],["priceCliff","Price cliff","cool"],["pioneer","Pioneer scene","cool"],
  ["latte","Latte line","warm"],["mainstream","Mainstream / chains","hot"],["press","Press & capital","hot"]];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-function rubricFor(pl){const o=OVR[pl.n+"|"+pl.a];
- if(o)return{rentGap:o[0],priceCliff:o[1],pioneer:o[2],latte:o[3],mainstream:o[4],press:o[5]};
- const m=pl.s;return{rentGap:clamp(Math.round(5.5-m/18),0,5),priceCliff:clamp(Math.round(2.7+m/45),2,5),
+function rubricFor(pl){const o=OVR[pl.n+"|"+pl.a];let base;
+ if(o)base={rentGap:o[0],priceCliff:o[1],pioneer:o[2],latte:o[3],mainstream:o[4],press:o[5]};
+ else{const m=pl.s;base={rentGap:clamp(Math.round(5.5-m/18),0,5),priceCliff:clamp(Math.round(2.7+m/45),2,5),
   pioneer:clamp(Math.round(m<60?(m-15)/10:5-(m-60)/40),0,5),latte:clamp(Math.round((m-28)/13),0,5),
   mainstream:clamp(Math.round((m-48)/11),0,5),press:clamp(Math.round((m-52)/10),0,5)};}
+ const mz=MEASURED[pl.n+"|"+pl.a];
+ if(mz&&typeof mz.cafes==='number')base.latte=latteFromCafes(mz.cafes);
+ return base;}
 function runway(m){return clamp(1-Math.pow(m/100,1.8),0,1);}
 function readiness(r){return clamp(.35*(r.priceCliff/5)+.25*(r.rentGap/5)+.30*(r.pioneer/5)+.10*(r.latte/5),0,1);}
 function oppFor(pl){return Math.round(100*readiness(rubricFor(pl))*runway(pl.s));}
@@ -426,10 +442,13 @@ function openDetail(idx){curIdx=idx;const pl=PLACES[idx];
  $('dOpp').textContent=pl._opp;$('dOpp').style.color=oppColor(pl._opp);
  $('dStage').textContent=stageOf(pl._mat);$('dStage').style.color=ramp(pl._mat/100);
  $('dVerdict').innerHTML=verdict(pl._mat,pl._opp);$('dBio').textContent=pl.bio;
- const r=rubricFor(pl);
+ const r=rubricFor(pl);const mz=MEASURED[pl.n+"|"+pl.a];
  $('dRub').innerHTML=RUBMETA.map(([k,label,col])=>{const v=r[k];
+  const meas=(k==='latte'&&mz&&typeof mz.cafes==='number');
+  const tag=meas?' <span class="measTag">measured</span>':'';
   const pips=Array.from({length:5},(_,j)=>`<span class="pip" style="background:${j<v?pipColor[col]:'rgba(255,255,255,.12)'}"></span>`).join("");
-  return`<div class="rrow"><span>${label}</span><span class="pips">${pips}</span></div>`;}).join("");
+  return`<div class="rrow"><span>${label}${tag}</span><span class="pips">${pips}</span></div>`;}).join("")
+  +(mz&&typeof mz.cafes==='number'?`<p class="measCap">☕ <b>Latte line is real:</b> ${mz.cafes} cafés within ${mz.radiusKm} km${mz.specialty?` (${mz.specialty} specialty)`:''} — ${mz.src}, ${mz.asof}. Every other signal here is still modelled.</p>`:'');
  map.flyTo([pl.lat,pl.lon],12,{duration:.8});loadPhoto(pl);}
 async function loadPhoto(pl){const tries=[pl.wiki||pl.n,(pl.wiki||pl.n)+", "+pl.a.split(",")[0]];
  for(const t of tries){try{const r=await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(t));
