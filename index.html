@@ -67,6 +67,10 @@
   .actions{display:flex;gap:8px;margin-top:16px;}
   .btn{flex:1;font-family:"Archivo",sans-serif;font-weight:700;font-size:11.5px;padding:9px;border-radius:8px;cursor:pointer;border:none;}
   .btnP{background:var(--cool);color:#06231f;} .btnG{background:transparent;border:1px solid rgba(255,255,255,.2);color:var(--p-ink);}
+  .sel{width:100%;background:var(--panel-2);border:1px solid rgba(255,255,255,.16);color:var(--p-ink);font-family:inherit;font-size:11px;padding:8px 10px;border-radius:8px;outline:none;cursor:pointer;}
+  .sel:focus{border-color:var(--cool);}
+  .btnList{display:block;text-align:center;text-decoration:none;font-family:"Archivo",sans-serif;font-weight:700;font-size:12px;padding:11px;border-radius:9px;margin-top:14px;background:var(--warm);color:#2a1c00;}
+  .btnList:hover{filter:brightness(1.06);}
   .liveBox{margin-top:14px;background:var(--panel-2);border-radius:10px;padding:13px;display:none;}
   .liveInt{font-size:11px;line-height:1.5;color:#cdd6dd;margin:10px 0 0;}
 
@@ -125,6 +129,14 @@
       <div class="toggle" id="metric"><button data-metric="mat" class="on">Maturity</button><button data-metric="opp">Opportunity</button></div>
       <div class="lab">Basemap</div>
       <div class="toggle" id="basemap"><button data-bm="light" class="on">Light</button><button data-bm="dark">Dark</button><button data-bm="sat">Satellite</button></div>
+      <div class="lab">Listings portal</div>
+      <select id="portal" class="sel">
+        <option value="auto">Auto (route by region)</option>
+        <option value="zillow">Zillow · US</option>
+        <option value="rightmove">Rightmove · UK</option>
+        <option value="zoopla">Zoopla · UK</option>
+        <option value="google">Google (anywhere)</option>
+      </select>
       <p class="hint"><b style="color:var(--p-ink)">Maturity</b> = how far up the curve (100 = done). <b style="color:var(--opp)">Opportunity</b> = early <i>and</i> ready. <span style="color:#FFD24A">★ gold rings flag must-buys</span> (opportunity ≥ 55). Hover a marker for a blurb; click for the profile.</p>
     </div>
     <div class="listWrap" id="list"></div>
@@ -144,6 +156,7 @@
         <div class="rubLab">Rubric profile (0–5)</div>
         <div class="rub" id="dRub"></div>
         <p class="rcap">Opportunity = readiness × runway. Readiness from <b style="color:var(--cool)">price cliff, rent gap, pioneer scene</b>; runway falls as <b style="color:var(--hot)">maturity</b> rises. Non-anchor rubric values are estimates from curve position.</p>
+        <a class="btnList" id="listBtn" target="_blank" rel="noopener noreferrer" href="#">Browse listings in this area →</a>
         <div class="actions">
           <button class="btn btnP" id="scanBtn">Scan live street signal</button>
           <button class="btn btnG" id="back">← All places</button>
@@ -488,6 +501,23 @@ $('q').addEventListener('keydown',async e=>{if(e.key!=='Enter')return;const q=e.
   map.flyTo([lat,lon],13,{duration:.8});scanAt(lat,lon);
  }catch(err){alert('Could not find that place.');}$('loading').style.display='none';});
 
+const PORTALS={
+ zillow:{build:loc=>'https://www.zillow.com/homes/'+encodeURIComponent(loc)+'_rb/'},
+ rightmove:{build:loc=>'https://www.rightmove.co.uk/property-for-sale/find.html?searchLocation='+encodeURIComponent(loc)},
+ zoopla:{build:loc=>'https://www.zoopla.co.uk/for-sale/?q='+encodeURIComponent(loc)},
+ google:{build:loc=>'https://www.google.com/search?q='+encodeURIComponent(loc+' property for sale')}
+};
+function regionOf(a){const t=(a||'').split(',').pop().trim();
+ if(t==='UK')return'uk';if(t==='MX')return'mx';
+ if(['FL','NY','CA','WA','OR','TX','CO','IL','PA','DC','TN','LA','MI','GA','NC','OH','SD','NJ','MA','AZ','NV'].includes(t))return'us';
+ return'intl';}
+function listingURL(n,a){const sel=$('portal').value,loc=n+', '+a;
+ if(sel!=='auto'&&PORTALS[sel])return PORTALS[sel].build(loc);
+ const r=regionOf(a);
+ if(r==='us')return PORTALS.zillow.build(loc);
+ if(r==='uk')return PORTALS.rightmove.build(loc);
+ return PORTALS.google.build(loc);}
+$('listBtn').addEventListener('click',function(){const n=$('dName').textContent,a=$('dArea').textContent;if(n)this.href=listingURL(n,a);});
 $('metric').addEventListener('click',e=>{const m=e.target.dataset.metric;if(!m)return;metric=m;
  [...$('metric').children].forEach(b=>b.classList.toggle('on',b.dataset.metric===m));
  recolor();updateLegend();if($('list').style.display!=='none')buildList($('q').value);});
